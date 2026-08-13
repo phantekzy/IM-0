@@ -303,46 +303,57 @@ static void tape_decode(const char *morsefile) {
     fprintf(stderr, "Cannot open %s\n", morsefile);
     exit(1);
   }
-  char tok[16];
-  char out[8192];
-  int oi = 0;
-  while (fscanf(f, "%15s", tok) == 1) {
-    if (strcmp(tok, "/") == 0)
-      out[oi++] = ' ';
-    else
-      out[oi++] = morse_to_char(tok);
+  char tok[256];
+  printf("Decoded tape message: ");
+  /* Read space-separated morse tokens and '/' for spaces */
+  while (fscanf(f, "%255s", tok) == 1) {
+    if (strcmp(tok, "/") == 0) {
+      putchar(' ');
+    } else {
+      putchar(morse_to_char(tok));
+    }
   }
-  out[oi] = 0;
+  putchar('\n');
   fclose(f);
-  printf("Decoded message: %s\n", out);
 }
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    fprintf(stderr,
-            "Usage:\n"
-            "  %s card encode \"MESSAGE\"\n"
-            "  %s card decode card.holes\n"
-            "  %s tape encode \"MESSAGE\"\n"
-            "  %s tape decode tape.morse\n",
-            argv[0], argv[0], argv[0], argv[0]);
+  if (argc < 4) {
+    fprintf(stderr, "IM-0 CLI by Phantekzy\n");
+    fprintf(stderr, "Usage:\n");
+    fprintf(stderr, "  %s card encode \"Your message here\"\n", argv[0]);
+    fprintf(stderr, "  %s card decode card.holes\n", argv[0]);
+    fprintf(stderr, "  %s tape encode \"Your message here\"\n", argv[0]);
+    fprintf(stderr, "  %s tape decode tape.morse\n", argv[0]);
     return 1;
   }
-  if (strcmp(argv[1], "card") == 0 && strcmp(argv[2], "encode") == 0 &&
-      argc >= 4)
-    card_encode(argv[3]);
-  else if (strcmp(argv[1], "card") == 0 && strcmp(argv[2], "decode") == 0 &&
-           argc >= 4)
-    card_decode(argv[3]);
-  else if (strcmp(argv[1], "tape") == 0 && strcmp(argv[2], "encode") == 0 &&
-           argc >= 4)
-    tape_encode(argv[3]);
-  else if (strcmp(argv[1], "tape") == 0 && strcmp(argv[2], "decode") == 0 &&
-           argc >= 4)
-    tape_decode(argv[3]);
-  else {
-    fprintf(stderr, "Bad arguments.\n");
+
+  const char *mode = argv[1];
+  const char *action = argv[2];
+  const char *data = argv[3];
+
+  if (strcmp(mode, "card") == 0) {
+    if (strcmp(action, "encode") == 0) {
+      card_encode(data);
+    } else if (strcmp(action, "decode") == 0) {
+      card_decode(data);
+    } else {
+      fprintf(stderr, "Unknown card action: %s\n", action);
+      return 1;
+    }
+  } else if (strcmp(mode, "tape") == 0) {
+    if (strcmp(action, "encode") == 0) {
+      tape_encode(data);
+    } else if (strcmp(action, "decode") == 0) {
+      tape_decode(data);
+    } else {
+      fprintf(stderr, "Unknown tape action: %s\n", action);
+      return 1;
+    }
+  } else {
+    fprintf(stderr, "Unknown mode: %s. Use 'card' or 'tape'.\n", mode);
     return 1;
   }
+
   return 0;
 }
