@@ -1,0 +1,13 @@
+# Compiled binary target
+/IM
+
+# Build artifacts & C output files
+*.o
+*.so
+*.a
+*.out
+
+# Editor & System clutter
+*.swp
+*~
+.DS_Store
