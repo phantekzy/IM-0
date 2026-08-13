@@ -83,24 +83,6 @@ static char mask_to_char(int mask) {
 
 #define COLS_PER_CARD 80
 
-/* ============================================================
- * Minimal, dependency-free PNG writer/reader.
- *
- * We never need real compression, so every IDAT is written as
- * "stored" (uncompressed) DEFLATE blocks. That means we don't
- * need zlib to write PNGs, AND we can write a tiny matching
- * inflate that only has to understand stored blocks to read
- * them back. This is what lets `decode` accept a .png image
- * directly instead of only the raw .holes/.morse key files.
- *
- * Caveat: because the reader only understands the simple
- * uncompressed stream we produce, it can only read PNGs that
- * this program generated (or an exact byte-for-byte copy of
- * one). If a PNG gets re-saved/re-compressed by another editor
- * it will use real DEFLATE compression and this reader will
- * report it as unsupported rather than crash.
- * ============================================================ */
-
 static uint32_t crc_table[256];
 static int crc_table_ready = 0;
 static void make_crc_table(void) {
@@ -231,9 +213,6 @@ static int write_png_gray(const char *filename, int w, int h,
   return 0;
 }
 
-/* Inflate a stream that only contains stored (uncompressed) DEFLATE
- * blocks, as produced by write_png_gray above. Returns malloc'd buffer
- * of *outlen bytes, or NULL on failure (e.g. real compression used). */
 static unsigned char *inflate_stored(const unsigned char *zdata, size_t zlen,
                                      size_t expected, size_t *outlen) {
   (void)expected;
@@ -277,8 +256,6 @@ fail:
   return NULL;
 }
 
-/* Reads an 8-bit grayscale (or RGB/RGBA, averaged down to grayscale) PNG
- * that uses only "None" row filters, as produced by write_png_gray. */
 static int read_png_gray(const char *filename, int *out_w, int *out_h,
                          unsigned char **out_pixels) {
   FILE *f = fopen(filename, "rb");
@@ -396,10 +373,6 @@ static int read_png_gray(const char *filename, int *out_w, int *out_h,
   return 0;
 }
 
-/* ============================================================
- * Punch card rendering (SVG for print, PNG for a real image file)
- * ============================================================ */
-
 static const double CARD_W = 737.5, CARD_H = 325.0;
 static const double CARD_LEFT = 28, CARD_TOP = 22;
 static const double CARD_COLPITCH = 8.7, CARD_ROWPITCH = 25.0;
@@ -509,10 +482,6 @@ static int decode_card_png(const char *filename, int *masks_out) {
   return COLS_PER_CARD;
 }
 
-/* ============================================================
- * Morse tape rendering (SVG for print, PNG for a real image file)
- * ============================================================ */
-
 typedef struct {
   char c;
   const char *code;
@@ -593,12 +562,6 @@ static void svg_tape(FILE *out, const char *message) {
   fprintf(out, "</svg></div>\n");
 }
 
-/* --- Slot-grid model used for the PNG tape image, so it can be
- * decoded back deterministically. One slot per dot/dash, plus
- * explicit blank slots for letter/word gaps:
- *   1 blank slot  -> letter separator (no space in output)
- *   2 blank slots -> word separator (one space in output)
- */
 typedef enum { SLOT_BLANK, SLOT_DOT, SLOT_DASH } SlotKind;
 
 static int build_tape_slots(const char *message, SlotKind **out_slots) {
