@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Row order top-to-bottom on a real card: 12, 11, 0, 1, 2, ... 9 */
 static const char *ROWLABELS[12] = {"12", "11", "0", "1", "2", "3",
                                     "4",  "5",  "6", "7", "8", "9"};
 
@@ -12,9 +11,6 @@ typedef struct {
   const char *rows;
 } CardEntry;
 
-/* Documented IBM 029 keypunch codes. Unlisted characters punch a blank
-   (empty) column -- exactly what a real keypunch operator did for a key
-   with no assigned code. */
 static const CardEntry CARD_TABLE[] = {
     {'A', "12,1"},   {'B', "12,2"},  {'C', "12,3"},   {'D', "12,4"},
     {'E', "12,5"},   {'F', "12,6"},  {'G', "12,7"},   {'H', "12,8"},
@@ -38,7 +34,6 @@ static int row_index(const char *label) {
   return -1;
 }
 
-/* Turn a char into a 12-bit mask (bit i set => ROWLABELS[i] punched) */
 static int char_to_mask(char c) {
   c = (char)toupper((unsigned char)c);
   for (int i = 0; i < CARD_TABLE_N; i++) {
@@ -62,7 +57,6 @@ static int char_to_mask(char c) {
   return 0; /* unknown character -> blank column, same as a real keypunch */
 }
 
-/* Reverse lookup: mask -> char (returns '?' if no such combination is coded) */
 static char mask_to_char(int mask) {
   if (mask == 0)
     return ' ';
@@ -86,14 +80,9 @@ static char mask_to_char(int mask) {
   return '?';
 }
 
-/* ------------------------------------------------------------------ */
-/* Section 2: card rendering -- one real 80-column, 12-row card per SVG */
-/* ------------------------------------------------------------------ */
-
 #define COLS_PER_CARD 80
 
 static void svg_card(FILE *out, const int *masks, int n) {
-  /* Coordinate system: 100 units per inch. Real card = 7.375in x 3.25in */
   const double W = 737.5, H = 325.0;
   const double left = 28, top = 22; /* margins */
   const double colpitch = 8.7, rowpitch = 25.0;
@@ -107,7 +96,7 @@ static void svg_card(FILE *out, const int *masks, int n) {
           "<rect x=\"0\" y=\"0\" width=\"%.1f\" height=\"%.1f\" "
           "class=\"cardstock\"/>\n",
           W, H);
-  /* corner cut, top-left, per convention */
+
   fprintf(out, "<polygon points=\"0,0 22,0 0,22\" class=\"cardbg\"/>\n");
 
   for (int col = 0; col < COLS_PER_CARD; col++) {
@@ -125,10 +114,6 @@ static void svg_card(FILE *out, const int *masks, int n) {
   }
   fprintf(out, "</svg></div>\n");
 }
-
-/* ------------------------------------------------------------------ */
-/* Section 3: Morse ticker tape */
-/* ------------------------------------------------------------------ */
 
 typedef struct {
   char c;
@@ -161,8 +146,6 @@ static char morse_to_char(const char *code) {
   return '?';
 }
 
-/* Renders the whole message as one continuous strip, wrapped into rows
-   like a real paper tape folded back and forth across the page. */
 static void svg_tape(FILE *out, const char *message) {
   fprintf(out, "<div class=\"tape\">\n");
   double x = 20, y = 18;
@@ -212,10 +195,6 @@ static void svg_tape(FILE *out, const char *message) {
   fprintf(out, "</svg></div>\n");
 }
 
-/* ------------------------------------------------------------------ */
-/* Section 4: HTML page wrapper + CSS for accurate printing            */
-/* ------------------------------------------------------------------ */
-
 static const char *CSS =
     "body{background:#3a3a3a;font-family:'Courier "
     "New',monospace;margin:0;padding:24px;}"
@@ -247,10 +226,6 @@ static void write_html_header(FILE *out, const char *title) {
       title, CSS, title);
 }
 static void write_html_footer(FILE *out) { fprintf(out, "</body></html>\n"); }
-
-/* ------------------------------------------------------------------ */
-/* Section 5: drivers                                                  */
-/* ------------------------------------------------------------------ */
 
 static void card_encode(const char *message) {
   int n = (int)strlen(message);
