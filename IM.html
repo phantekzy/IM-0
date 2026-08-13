@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IM-0 — Punch Card &amp; Ticker Tape</title>
+    <style>
+      :root {
+        --stock: #e9e2c9;
+        --stock-edge: #8c8362;
+        --ink: #2a2a2a;
+        --hole: #3a3a3a;
+        --panel: #232323;
+        --panel-2: #2d2d2b;
+        --amber: #c98a3a;
+        --amber-bright: #e0a94f;
+        --paper-shadow: rgba(0, 0, 0, 0.55);
+        --mono: "IBM Plex Mono", "Courier New", monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: repeating-linear-gradient(
+          180deg,
+          #161615 0 2px,
+          #141413 2px 4px
+        );
+        color: #e8e3d6;
+        font-family: var(--mono);
+        padding: 32px 16px 64px;
+      }
+      .wrap {
+        max-width: 920px;
+        margin: 0 auto;
+      }
+      header {
+        margin-bottom: 28px;
+      }
+      header .eyebrow {
+        color: var(--amber);
+        letter-spacing: 0.28em;
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+      header h1 {
+        margin: 6px 0 4px;
+        font-size: 28px;
+        letter-spacing: 0.04em;
+        font-weight: 700;
+        color: #f4efe0;
+      }
+      header p {
+        margin: 0;
+        color: #9b9587;
+        font-size: 13px;
+        max-width: 560px;
+        line-height: 1.5;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 2px;
+        margin: 24px 0 0;
+        border-bottom: 1px solid #3a3934;
+      }
+      .tab {
+        padding: 10px 18px;
+        background: none;
+        border: none;
+        color: #8b8677;
+        font-family: var(--mono);
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        text-transform: uppercase;
+      }
+      .tab.active {
+        color: var(--amber-bright);
+        border-bottom-color: var(--amber-bright);
+      }
+      .tab:hover:not(.active) {
+        color: #c9c4b4;
+      }
+
+      .panel {
+        display: none;
+        background: var(--panel);
+        border: 1px solid #38372f;
+        border-top: none;
+        padding: 24px;
+      }
+      .panel.active {
+        display: block;
+      }
+
+      .section-label {
+        font-size: 11px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #847f6f;
+        margin: 0 0 12px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      input[type="text"] {
+        flex: 1 1 320px;
+        background: #1a1a18;
+        border: 1px solid #46453b;
+        color: #f0ead9;
+        font-family: var(--mono);
+        font-size: 15px;
+        padding: 11px 12px;
+        min-width: 0;
+      }
+      input[type="text"]:focus {
+        outline: none;
+        border-color: var(--amber);
+      }
+
+      button {
+        background: var(--amber);
+        color: #1a1408;
+        border: none;
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 11px 18px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--amber-bright);
+      }
+      button:disabled {
+        background: #4a4738;
+        color: #847f6f;
+        cursor: not-allowed;
+      }
+      button.secondary {
+        background: #3a392f;
+        color: #e0dccb;
+      }
+      button.secondary:hover {
+        background: #48473a;
+      }
+
+      .stage {
+        margin-top: 22px;
+      }
+      .card-frame {
+        background: var(--stock);
+        border: 1px solid var(--stock-edge);
+        box-shadow: 0 10px 30px var(--paper-shadow);
+        display: inline-block;
+        max-width: 100%;
+        overflow-x: auto;
+        position: relative;
+      }
+      .card-frame canvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+      .card-notch {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 22px;
+        height: 22px;
+        background: var(--panel-2);
+        clip-path: polygon(0 0, 100% 0, 0 100%);
+      }
+      .tape-frame {
+        background: #efe9d6;
+        border: 1px solid #c9c0a0;
+        box-shadow: 0 10px 30px var(--paper-shadow);
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      .tape-frame canvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+      .card-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .card-index {
+        font-size: 10px;
+        color: #847f6f;
+        letter-spacing: 0.15em;
+        margin: 0 0 6px;
+        text-transform: uppercase;
+      }
+
+      .actions {
+        margin-top: 16px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .dropzone {
+        border: 1px dashed #4a4738;
+        background: #1a1a18;
+        padding: 26px;
+        text-align: center;
+        color: #8b8677;
+        font-size: 13px;
+        cursor: pointer;
+        transition: border-color 0.15s;
+      }
+      .dropzone.drag {
+        border-color: var(--amber);
+        color: #e0dccb;
+      }
+      .dropzone input {
+        display: none;
+      }
+      .thumbs {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+      .thumb {
+        border: 1px solid #46453b;
+        background: #111;
+        padding: 4px;
+      }
+      .thumb img {
+        display: block;
+        max-width: 120px;
+        max-height: 70px;
+      }
+      .thumb .name {
+        font-size: 10px;
+        color: #847f6f;
+        margin-top: 4px;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .readout {
+        margin-top: 18px;
+        background: #141412;
+        border: 1px solid #38372f;
+        padding: 16px;
+        min-height: 24px;
+        color: var(--amber-bright);
+        font-size: 15px;
+        letter-spacing: 0.02em;
+        word-break: break-word;
+      }
+      .readout .placeholder {
+        color: #5c584c;
+      }
+      .hint {
+        font-size: 11.5px;
+        color: #75705f;
+        margin-top: 10px;
+        line-height: 1.5;
+      }
+      .hint b {
+        color: #a39c86;
+      }
+
+      footer {
+        margin-top: 32px;
+        font-size: 11px;
+        color: #5c584c;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="eyebrow">IM-0 — encoder / decoder</div>
+        <h1>Punch Card &amp; Ticker Tape</h1>
+        <p>
+          Type a message, get a real image you can save. Upload that image back
+          and it reads the holes or marks straight off the picture — no separate
+          key file needed.
+        </p>
+      </header>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="card">Punch Card</button>
+        <button class="tab" data-tab="tape">Ticker Tape</button>
+      </div>
+
+      <div class="panel active" id="panel-card">
+        <div class="section-label">Encode → image</div>
+        <div class="row">
+          <input
+            type="text"
+            id="card-input"
+            placeholder="Type a message…"
+            maxlength="4000"
+            value="HELLO WORLD"
+          />
+          <button id="card-render">Punch it</button>
+        </div>
+
+        <div class="stage" id="card-stage"></div>
+        <div class="actions" id="card-actions" style="display: none">
+          <button id="card-download-all" class="secondary">Download PNG</button>
+        </div>
+
+        <hr
+          style="border: none; border-top: 1px solid #38372f; margin: 28px 0"
+        />
+
+        <div class="section-label">Decode ← image</div>
+        <div class="dropzone" id="card-drop">
+          Drop punch-card PNG(s) here, or click to choose files<br />
+          <span style="font-size: 11px"
+            >(select all cards at once for a message that spans more than
+            one)</span
+          >
+          <input type="file" id="card-file" accept="image/*" multiple />
+        </div>
+        <div class="thumbs" id="card-thumbs"></div>
+        <div class="actions">
+          <button id="card-decode" disabled>Decode image</button>
+        </div>
+        <div class="readout" id="card-readout">
+          <span class="placeholder">Decoded message will appear here…</span>
+        </div>
+        <p class="hint">
+          <b>Note:</b> this reads the hole grid at fixed positions, so it works
+          reliably on images this tool generated (even if resized). A photo of
+          an actual physical punch card would need alignment/lighting correction
+          this simple version doesn't do.
+        </p>
+      </div>
+
+      <div class="panel" id="panel-tape">
+        <div class="section-label">Encode → image</div>
+        <div class="row">
+          <input
+            type="text"
+            id="tape-input"
+            placeholder="Type a message…"
+            maxlength="4000"
+            value="HELLO WORLD"
+          />
+          <button id="tape-render">Send it</button>
+        </div>
+
+        <div class="stage" id="tape-stage"></div>
+        <div class="actions" id="tape-actions" style="display: none">
+          <button id="tape-download" class="secondary">Download PNG</button>
+        </div>
+
+        <hr
+          style="border: none; border-top: 1px solid #38372f; margin: 28px 0"
+        />
+
+        <div class="section-label">Decode ← image</div>
+        <div class="dropzone" id="tape-drop">
+          Drop a ticker-tape PNG here, or click to choose a file
+          <input type="file" id="tape-file" accept="image/*" />
+        </div>
+        <div class="thumbs" id="tape-thumbs"></div>
+        <div class="actions">
+          <button id="tape-decode" disabled>Decode image</button>
+        </div>
+        <div class="readout" id="tape-readout">
+          <span class="placeholder">Decoded message will appear here…</span>
+        </div>
+        <p class="hint">
+          <b>Note:</b> dots and dashes sit on a fixed grid (that's what makes
+          reading them back unambiguous), so this reads images this tool
+          generated rather than freehand Morse.
+        </p>
+      </div>
+
+      <footer>
+        IM-0 — runs entirely in your browser. Nothing you type or upload leaves
+        this page.
+      </footer>
+    </div>
+
+    <script>
+      const ROWLABELS = [
+        "12",
+        "11",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+      ];
+
+      const CARD_TABLE = {
+        A: "12,1",
+        B: "12,2",
+        C: "12,3",
+        D: "12,4",
+        E: "12,5",
+        F: "12,6",
+        G: "12,7",
+        H: "12,8",
+        I: "12,9",
+        J: "11,1",
+        K: "11,2",
+        L: "11,3",
+        M: "11,4",
+        N: "11,5",
+        O: "11,6",
+        P: "11,7",
+        Q: "11,8",
+        R: "11,9",
+        S: "0,2",
+        T: "0,3",
+        U: "0,4",
+        V: "0,5",
+        W: "0,6",
+        X: "0,7",
+        Y: "0,8",
+        Z: "0,9",
+        0: "0",
+        1: "1",
+        2: "2",
+        3: "3",
+        4: "4",
+        5: "5",
+        6: "6",
+        7: "7",
+        8: "8",
+        9: "9",
+        " ": "",
+        "&": "12",
+        "-": "11",
+        "/": "0,1",
+        ".": "12,3,8",
+        ",": "0,3,8",
+        $: "11,3,8",
+        "*": "11,4,8",
+        "%": "0,4,8",
+        "#": "3,8",
+        "@": "4,8",
+        "'": "8,5",
+      };
+
+      const MORSE_TABLE = {
+        A: ".-",
+        B: "-...",
+        C: "-.-.",
+        D: "-..",
+        E: ".",
+        F: "..-.",
+        G: "--.",
+        H: "....",
+        I: "..",
+        J: ".---",
+        K: "-.-",
+        L: ".-..",
+        M: "--",
+        N: "-.",
+        O: "---",
+        P: ".--.",
+        Q: "--.-",
+        R: ".-.",
+        S: "...",
+        T: "-",
+        U: "..-",
+        V: "...-",
+        W: ".--",
+        X: "-..-",
+        Y: "-.--",
+        Z: "--..",
+        0: "-----",
+        1: ".----",
+        2: "..---",
+        3: "...--",
+        4: "....-",
+        5: ".....",
+        6: "-....",
+        7: "--...",
+        8: "---..",
+        9: "----.",
+      };
+      const MORSE_REV = Object.fromEntries(
+        Object.entries(MORSE_TABLE).map(([k, v]) => [v, k]),
+      );
+
+      function charToMask(ch) {
+        const c = ch.toUpperCase();
+        const rows = CARD_TABLE[c];
+        if (rows === undefined) return 0; // unknown char -> blank column
+        if (rows === "") return 0;
+        let mask = 0;
+        for (const tok of rows.split(",")) {
+          const ri = ROWLABELS.indexOf(tok);
+          if (ri >= 0) mask |= 1 << ri;
+        }
+        return mask;
+      }
+      function maskToChar(mask) {
+        if (mask === 0) return " ";
+        for (const [c, rows] of Object.entries(CARD_TABLE)) {
+          if (rows === "") continue;
+          let m = 0;
+          for (const tok of rows.split(",")) {
+            const ri = ROWLABELS.indexOf(tok);
+            if (ri >= 0) m |= 1 << ri;
+          }
+          if (m === mask) return c;
+        }
+        return "?";
+      }
+
+      const COLS_PER_CARD = 80;
+      const CARD = {
+        W: 1475,
+        H: 650,
+        left: 56,
+        top: 44,
+        colpitch: 17.4,
+        rowpitch: 50,
+        holew: 8.8,
+        holeh: 24,
+        bg: "#e9e2c9",
+        hole: "#3a3a3a",
+      };
+
+      function drawCard(ctx, masks) {
+        ctx.fillStyle = CARD.bg;
+        ctx.fillRect(0, 0, CARD.W, CARD.H);
+        ctx.fillStyle = CARD.hole;
+        for (let col = 0; col < COLS_PER_CARD; col++) {
+          const mask = masks[col] || 0;
+          if (!mask) continue;
+          const cx = CARD.left + col * CARD.colpitch;
+          for (let r = 0; r < 12; r++) {
+            if (!(mask & (1 << r))) continue;
+            const cy = CARD.top + r * CARD.rowpitch;
+            ctx.fillRect(
+              cx - CARD.holew / 2,
+              cy - CARD.holeh / 2,
+              CARD.holew,
+              CARD.holeh,
+            );
+          }
+        }
+      }
+
+      function decodeCardImageData(imgData, imgW, imgH) {
+        const sx = imgW / CARD.W,
+          sy = imgH / CARD.H;
+        const masks = [];
+        for (let col = 0; col < COLS_PER_CARD; col++) {
+          let mask = 0;
+          const cx = Math.round((CARD.left + col * CARD.colpitch) * sx);
+          for (let r = 0; r < 12; r++) {
+            const cy = Math.round((CARD.top + r * CARD.rowpitch) * sy);
+            if (cx < 0 || cx >= imgW || cy < 0 || cy >= imgH) continue;
+            const idx = (cy * imgW + cx) * 4;
+            const lum =
+              (imgData[idx] + imgData[idx + 1] + imgData[idx + 2]) / 3;
+            if (lum < 140) mask |= 1 << r;
+          }
+          masks.push(mask);
+        }
+        return masks;
+      }
+
+      const TAPE = {
+        slotsPerRow: 24,
+        slotW: 80,
+        rowH: 160,
+        margin: 80,
+        bg: "#efe9d6",
+        mark: "#2a2a2a",
+        dotR: 20,
+        dashHalfW: 34,
+      };
+
+      function buildTapeSlots(message) {
+        const slots = []; // 0=blank,1=dot,2=dash
+        const words = message.split(" ").filter((w) => w.length > 0);
+        words.forEach((word, wi) => {
+          if (wi > 0) {
+            slots.push(0, 0);
+          }
+          let firstLetter = true;
+          for (const ch of word) {
+            const code = MORSE_TABLE[ch.toUpperCase()];
+            if (!code) continue;
+            if (!firstLetter) slots.push(0);
+            firstLetter = false;
+            for (const m of code) slots.push(m === "." ? 1 : 2);
+          }
+        });
+        return slots;
+      }
+
+      function tapeCanvasSize(nslots) {
+        const rows = Math.floor(nslots / TAPE.slotsPerRow) + 1;
+        const w = TAPE.margin * 2 + TAPE.slotsPerRow * TAPE.slotW;
+        const h = TAPE.margin * 2 + rows * TAPE.rowH;
+        return { w, h, rows };
+      }
+
+      function estimateTapeRows(imgW, imgH) {
+        const wRef = TAPE.margin * 2 + TAPE.slotsPerRow * TAPE.slotW;
+        const hRefNoRows = TAPE.margin * 2;
+        const ratio = imgH / imgW;
+        const rows = Math.round((ratio * wRef - hRefNoRows) / TAPE.rowH);
+        return Math.max(1, rows);
+      }
+
+      function drawTape(ctx, slots, w, h) {
+        ctx.fillStyle = TAPE.bg;
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = TAPE.mark;
+        slots.forEach((s, i) => {
+          if (s === 0) return;
+          const row = Math.floor(i / TAPE.slotsPerRow);
+          const col = i % TAPE.slotsPerRow;
+          const cx = TAPE.margin + (col + 0.5) * TAPE.slotW;
+          const cy = TAPE.margin + (row + 0.5) * TAPE.rowH;
+          if (s === 1) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, TAPE.dotR, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillRect(
+              cx - TAPE.dashHalfW,
+              cy - TAPE.dotR,
+              TAPE.dashHalfW * 2,
+              TAPE.dotR * 2,
+            );
+          }
+        });
+      }
+
+      function decodeTapeImageData(imgData, imgW, imgH, rows) {
+        const sx = imgW / (TAPE.margin * 2 + TAPE.slotsPerRow * TAPE.slotW);
+        const sy = imgH / (TAPE.margin * 2 + rows * TAPE.rowH);
+        const nslots = rows * TAPE.slotsPerRow;
+        const slots = [];
+        for (let i = 0; i < nslots; i++) {
+          const row = Math.floor(i / TAPE.slotsPerRow);
+          const col = i % TAPE.slotsPerRow;
+          const cx = (TAPE.margin + (col + 0.5) * TAPE.slotW) * sx;
+          const cy = (TAPE.margin + (row + 0.5) * TAPE.rowH) * sy;
+          const cxi = Math.round(cx),
+            cyi = Math.round(cy);
+          const sample = (x, y) => {
+            if (x < 0 || x >= imgW || y < 0 || y >= imgH) return 255;
+            const idx = (y * imgW + x) * 4;
+            return (imgData[idx] + imgData[idx + 1] + imgData[idx + 2]) / 3;
+          };
+          const centerDark = sample(cxi, cyi) < 140;
+          const ex = Math.round(cx + (TAPE.dashHalfW - 8) * sx);
+          const edgeDark = sample(ex, cyi) < 140;
+          slots.push(!centerDark ? 0 : edgeDark ? 2 : 1);
+        }
+        while (slots.length && slots[slots.length - 1] === 0) slots.pop();
+        return slots;
+      }
+
+      function slotsToText(slots) {
+        let out = "",
+          code = "";
+        let i = 0;
+        while (i < slots.length) {
+          if (slots[i] === 1 || slots[i] === 2) {
+            code += slots[i] === 1 ? "." : "-";
+            i++;
+            continue;
+          }
+          let j = i;
+          while (j < slots.length && slots[j] === 0) j++;
+          const runlen = j - i;
+          if (code) {
+            out += MORSE_REV[code] || "?";
+            code = "";
+          }
+          if (runlen >= 2) out += " ";
+          i = j;
+        }
+        if (code) out += MORSE_REV[code] || "?";
+        return out;
+      }
+    </script>
+    <script>
+      /* ---------------- tabs ---------------- */
+      document.querySelectorAll(".tab").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab")
+            .forEach((b) => b.classList.remove("active"));
+          document
+            .querySelectorAll(".panel")
+            .forEach((p) => p.classList.remove("active"));
+          btn.classList.add("active");
+          document
+            .getElementById("panel-" + btn.dataset.tab)
+            .classList.add("active");
+        });
+      });
+
+      function canvasToPngBlob(canvas) {
+        return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      }
+      function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      }
+      function loadImageFile(file) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = URL.createObjectURL(file);
+        });
+      }
+
+      let cardCanvases = []; // {canvas, chunk}
+
+      function renderCard() {
+        const msg = document.getElementById("card-input").value;
+        const stage = document.getElementById("card-stage");
+        stage.innerHTML = "";
+        cardCanvases = [];
+
+        if (!msg) {
+          document.getElementById("card-actions").style.display = "none";
+          return;
+        }
+
+        const stack = document.createElement("div");
+        stack.className = "card-stack";
+
+        let pos = 0;
+        const chunks = [];
+        while (pos < msg.length) {
+          chunks.push(msg.slice(pos, pos + COLS_PER_CARD));
+          pos += COLS_PER_CARD;
+        }
+
+        chunks.forEach((chunk, i) => {
+          if (chunks.length > 1) {
+            const label = document.createElement("div");
+            label.className = "card-index";
+            label.textContent = `Card ${i + 1} of ${chunks.length}`;
+            stack.appendChild(label);
+          }
+          const frame = document.createElement("div");
+          frame.className = "card-frame";
+          const notch = document.createElement("div");
+          notch.className = "card-notch";
+          const canvas = document.createElement("canvas");
+          canvas.width = CARD.W;
+          canvas.height = CARD.H;
+          const ctx = canvas.getContext("2d");
+          const masks = [...chunk].map(charToMask);
+          drawCard(ctx, masks);
+          frame.appendChild(notch);
+          frame.appendChild(canvas);
+          stack.appendChild(frame);
+          cardCanvases.push(canvas);
+        });
+
+        stage.appendChild(stack);
+        document.getElementById("card-actions").style.display =
+          cardCanvases.length ? "flex" : "none";
+      }
+
+      document
+        .getElementById("card-render")
+        .addEventListener("click", renderCard);
+      document.getElementById("card-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") renderCard();
+      });
+
+      document
+        .getElementById("card-download-all")
+        .addEventListener("click", async () => {
+          for (let i = 0; i < cardCanvases.length; i++) {
+            const blob = await canvasToPngBlob(cardCanvases[i]);
+            const name =
+              cardCanvases.length > 1 ? `card_${i + 1}.png` : "card.png";
+            downloadBlob(blob, name);
+            await new Promise((r) => setTimeout(r, 120)); // let each download register
+          }
+        });
+
+      renderCard();
+
+      let cardFiles = [];
+      const cardDrop = document.getElementById("card-drop");
+      const cardFileInput = document.getElementById("card-file");
+      const cardThumbs = document.getElementById("card-thumbs");
+      const cardDecodeBtn = document.getElementById("card-decode");
+
+      function setCardFiles(files) {
+        cardFiles = Array.from(files).filter((f) =>
+          f.type.startsWith("image/"),
+        );
+        cardThumbs.innerHTML = "";
+        cardFiles.forEach((f) => {
+          const div = document.createElement("div");
+          div.className = "thumb";
+          const img = document.createElement("img");
+          img.src = URL.createObjectURL(f);
+          const name = document.createElement("div");
+          name.className = "name";
+          name.textContent = f.name;
+          div.appendChild(img);
+          div.appendChild(name);
+          cardThumbs.appendChild(div);
+        });
+        cardDecodeBtn.disabled = cardFiles.length === 0;
+      }
+
+      cardDrop.addEventListener("click", () => cardFileInput.click());
+      cardFileInput.addEventListener("change", () =>
+        setCardFiles(cardFileInput.files),
+      );
+      ["dragover", "dragleave", "drop"].forEach((evt) => {
+        cardDrop.addEventListener(evt, (e) => {
+          e.preventDefault();
+          cardDrop.classList.toggle("drag", evt === "dragover");
+          if (evt === "drop") setCardFiles(e.dataTransfer.files);
+        });
+      });
+
+      cardDecodeBtn.addEventListener("click", async () => {
+        const readout = document.getElementById("card-readout");
+        readout.textContent = "Decoding…";
+        try {
+          const files = [...cardFiles].sort((a, b) =>
+            a.name.localeCompare(b.name, undefined, { numeric: true }),
+          );
+          let out = "";
+          for (const file of files) {
+            const img = await loadImageFile(file);
+            const canvas = document.createElement("canvas");
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height,
+            ).data;
+            const masks = decodeCardImageData(
+              data,
+              canvas.width,
+              canvas.height,
+            );
+            for (const m of masks) out += maskToChar(m);
+          }
+          out = out.replace(/\s+$/, "");
+          readout.textContent = out || "(blank)";
+        } catch (err) {
+          readout.textContent = "Couldn't read that image: " + err.message;
+        }
+      });
+
+      let tapeCanvas = null;
+
+      function renderTape() {
+        const msg = document.getElementById("tape-input").value;
+        const stage = document.getElementById("tape-stage");
+        stage.innerHTML = "";
+        tapeCanvas = null;
+
+        if (!msg) {
+          document.getElementById("tape-actions").style.display = "none";
+          return;
+        }
+
+        const slots = buildTapeSlots(msg);
+        const { w, h } = tapeCanvasSize(slots.length);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        drawTape(ctx, slots, w, h);
+
+        const frame = document.createElement("div");
+        frame.className = "tape-frame";
+        frame.appendChild(canvas);
+        stage.appendChild(frame);
+
+        tapeCanvas = canvas;
+        document.getElementById("tape-actions").style.display = "flex";
+      }
+
+      document
+        .getElementById("tape-render")
+        .addEventListener("click", renderTape);
+      document.getElementById("tape-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") renderTape();
+      });
+
+      document
+        .getElementById("tape-download")
+        .addEventListener("click", async () => {
+          if (!tapeCanvas) return;
+          const blob = await canvasToPngBlob(tapeCanvas);
+          downloadBlob(blob, "tape.png");
+        });
+
+      renderTape();
+
+      let tapeFile = null;
+      const tapeDrop = document.getElementById("tape-drop");
+      const tapeFileInput = document.getElementById("tape-file");
+      const tapeThumbs = document.getElementById("tape-thumbs");
+      const tapeDecodeBtn = document.getElementById("tape-decode");
+
+      function setTapeFile(files) {
+        const f = files[0];
+        if (!f || !f.type.startsWith("image/")) return;
+        tapeFile = f;
+        tapeThumbs.innerHTML = "";
+        const div = document.createElement("div");
+        div.className = "thumb";
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(f);
+        const name = document.createElement("div");
+        name.className = "name";
+        name.textContent = f.name;
+        div.appendChild(img);
+        div.appendChild(name);
+        tapeThumbs.appendChild(div);
+        tapeDecodeBtn.disabled = false;
+      }
+
+      tapeDrop.addEventListener("click", () => tapeFileInput.click());
+      tapeFileInput.addEventListener("change", () =>
+        setTapeFile(tapeFileInput.files),
+      );
+      ["dragover", "dragleave", "drop"].forEach((evt) => {
+        tapeDrop.addEventListener(evt, (e) => {
+          e.preventDefault();
+          tapeDrop.classList.toggle("drag", evt === "dragover");
+          if (evt === "drop") setTapeFile(e.dataTransfer.files);
+        });
+      });
+
+      tapeDecodeBtn.addEventListener("click", async () => {
+        const readout = document.getElementById("tape-readout");
+        readout.textContent = "Decoding…";
+        try {
+          const img = await loadImageFile(tapeFile);
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          const rows = estimateTapeRows(canvas.width, canvas.height);
+          const slots = decodeTapeImageData(
+            data,
+            canvas.width,
+            canvas.height,
+            rows,
+          );
+          const text = slotsToText(slots);
+          readout.textContent = text || "(blank)";
+        } catch (err) {
+          readout.textContent = "Couldn't read that image: " + err.message;
+        }
+      });
+    </script>
+  </body>
+</html>
